@@ -16,7 +16,10 @@ Those shared containers come from `~/3.0/dev/postgres.yml` and `redis.yml`. They
 
 - Dev up: `docker compose -f docker/dev/docker-compose.yml up -d --build`
   - The `web` container idles. Open it as a VS Code devcontainer, or use `docker exec -it leadflow_dev_web zsh`.
-  - Inside it run `python manage.py runserver 0.0.0.0:8000`. It's reachable at `localhost:8010`.
+  - Inside it, start the HTTPS dev server: `python manage.py runsslserver 0.0.0.0:8001 --certificate certs/localhost.pem --key certs/localhost-key.pem`. It's reachable at `https://localhost:8011`.
+  - Plain HTTP still works: `python manage.py runserver 0.0.0.0:8000` serves `http://localhost:8010`.
+  - `django-sslserver-v2` is a dev dependency. `sslserver` is added to `INSTALLED_APPS` only when `DJANGO_DEBUG=1`, so the prod image doesn't include it.
+  - `certs/` holds an mkcert certificate for `localhost`, `127.0.0.1` and `::1`. It's gitignored and dockerignored; regenerate it with `mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1`. Browsers trust it once `mkcert -install` has been run on the machine.
   - `worker` and `beat` run Celery under `watchfiles`.
 - Prod up: `docker compose -f docker/prod/docker-compose.yml up -d --build`
   - A one-shot `migrate` service runs first, then uvicorn serves on `localhost:8020`.

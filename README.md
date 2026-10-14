@@ -14,12 +14,17 @@ Django REST API for the LeadFlow CRM (Python 3.14, uv, Celery). It uses the shar
    ```bash
    docker exec -it leadflow_dev_web zsh
    ```
-5. Inside it, set up the database and start the server:
+5. Create the local HTTPS certificate on the host (once per machine). `mkcert -install` asks for your password; it makes browsers trust the cert:
+   ```bash
+   mkcert -install
+   mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1
+   ```
+6. Inside the container, set up the database and start the HTTPS server:
    ```bash
    python manage.py makemigrations && python manage.py migrate
-   python manage.py runserver 0.0.0.0:8000
+   python manage.py runsslserver 0.0.0.0:8001 --certificate certs/localhost.pem --key certs/localhost-key.pem
    ```
-   The API is at http://localhost:8010, with docs at http://localhost:8010/api/schema/swagger-ui/.
+   The API is at https://localhost:8011, with docs at https://localhost:8011/api/schema/swagger-ui/. Plain `runserver 0.0.0.0:8000` still serves http://localhost:8010.
 
 ## Prod
 

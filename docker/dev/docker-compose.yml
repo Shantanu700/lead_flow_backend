@@ -24,9 +24,11 @@ services:
   web:
     <<: *app
     container_name: leadflow_dev_web
-    # Idle: open in the devcontainer and run `uv run manage.py runserver 0.0.0.0:8000`.
+    # Idle: open in the devcontainer and start the HTTPS dev server:
+    #   python manage.py runsslserver 0.0.0.0:8001 --certificate certs/localhost.pem --key certs/localhost-key.pem
+    # (plain `runserver 0.0.0.0:8000` still works on :8010)
     command: /bin/sh -c "while sleep 1000; do :; done"
-    ports: ["8010:8000"]
+    ports: ["8010:8000", "8011:8001"]
 
   worker:
     <<: *app

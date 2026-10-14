@@ -7,6 +7,7 @@
 staticfiles
 media
 celerybeat-schedule*
+certs
 # Never bake secrets into an image (covers docker/prod/.env too)
 **/.env
 .devcontainer

@@ -15,6 +15,9 @@ db.sqlite3
 *.log
 celerybeat-schedule*
 
+# Local TLS certs (mkcert), generated per machine
+certs/
+
 # Migrations are generated per environment (run makemigrations after cloning)
 **/migrations/**
 !**/migrations/__init__.py
