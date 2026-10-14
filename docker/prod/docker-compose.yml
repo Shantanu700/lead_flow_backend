@@ -1,0 +1,61 @@
+# Production stack. Run from the backend root:
+#   docker compose -f docker/prod/docker-compose.yml up -d --build
+#
+# Uses the shared postgres_db / redis on dev_db_network (database leadflow_prod,
+# Redis index 3). Settings come from docker/prod/.env via env_file; after editing
+# it, run the same "up -d" again and compose recreates the affected containers.
+# No code mount, no dev deps, migrations run once before web/worker/beat start.
+name: leadflow-prod
+
+x-app: &app
+  build:
+    context: ../..
+    dockerfile: docker/prod/Dockerfile
+  image: leadflow:prod
+  env_file:
+    - path: ./.env
+      required: true
+  environment:
+    DJANGO_DEBUG: "0"
+  restart: unless-stopped
+  networks: [db]
+
+services:
+  # One-shot: web/worker/beat wait for it to exit 0.
+  migrate:
+    <<: *app
+    restart: "no"
+    command: python manage.py migrate --noinput
+
+  web:
+    <<: *app
+    container_name: leadflow_prod_web
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    ports: ["8020:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health/', timeout=5).status==200 else 1)"]
+      interval: 15s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    <<: *app
+    container_name: leadflow_prod_worker
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    command: celery -A config worker -l info --concurrency 4
+
+  beat:
+    <<: *app
+    container_name: leadflow_prod_beat
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    command: celery -A config beat -l info
+
+networks:
+  db:
+    name: dev_db_network
+    external: true

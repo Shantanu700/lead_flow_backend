@@ -1,0 +1,12 @@
+{
+  "name": "LeadFlow backend (Python 3.14)",
+  "dockerComposeFile": ["../docker/dev/docker-compose.yml"],
+  "service": "web",
+  "runServices": ["web", "worker", "beat"],
+  "workspaceFolder": "/backend",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff"]
+    }
+  }
+}

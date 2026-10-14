@@ -1,0 +1,45 @@
+# Development stack. Run from the backend root:
+#   docker compose -f docker/dev/docker-compose.yml up -d --build
+#
+# Postgres and Redis are the shared containers on dev_db_network (postgres_db,
+# redis). App settings are NOT injected here: Django reads the bind-mounted
+# backend/.env itself, so editing it only reloads the process, never the container.
+name: leadflow-dev
+
+x-app: &app
+  build:
+    context: ../..
+    dockerfile: docker/dev/Dockerfile
+    args:
+      # Matches the host user so files written into the bind mount stay yours.
+      USER: ${USER:-leadflow}
+  # One image for web/worker/beat so they never drift apart.
+  image: leadflow:dev
+  volumes:
+    - ../..:/backend
+    - ${HOME}/.ssh:/home/${USER:-leadflow}/.ssh
+  networks: [db]
+
+services:
+  web:
+    <<: *app
+    container_name: leadflow_dev_web
+    # Idle: open in the devcontainer and run `uv run manage.py runserver 0.0.0.0:8000`.
+    command: /bin/sh -c "while sleep 1000; do :; done"
+    ports: ["8010:8000"]
+
+  worker:
+    <<: *app
+    container_name: leadflow_dev_worker
+    # watchfiles restarts Celery when app code or .env changes.
+    command: watchfiles "celery -A config worker -l info --concurrency 2" . --ignore-paths .venv,.git,tests,docker,staticfiles,media
+
+  beat:
+    <<: *app
+    container_name: leadflow_dev_beat
+    command: watchfiles "celery -A config beat -l info" . --ignore-paths .venv,.git,tests,docker,staticfiles,media
+
+networks:
+  db:
+    name: dev_db_network
+    external: true
