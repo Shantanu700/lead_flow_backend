@@ -17,7 +17,10 @@ class User(ModelBase, AbstractUser):
     )
 
     name = models.CharField(max_length=255, blank=True)
+    # Login identifier; always stored lowercase by UserManager / RegisterSerializer.
+    email = models.EmailField(unique=True)
 
     objects = UserManager()
 
-    USERNAME_FIELD = "username"
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["name"]
