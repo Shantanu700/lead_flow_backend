@@ -13,7 +13,7 @@ def test_health_reports_ok(client):
 
 def test_user_timestamps_and_soft_delete():
     User = get_user_model()
-    user = User.objects.create_user("asha", password="not-a-real-pass-123")
+    user = User.objects.create_user("asha@example.com", password="not-a-real-pass-123")
     created = user.created_at
 
     user.name = "Asha"
