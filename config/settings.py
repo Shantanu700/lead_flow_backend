@@ -48,7 +48,10 @@ LOCAL_APPS = [
     "modules.core",
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+# runsslserver (HTTPS dev server) is a dev-only dependency, absent from the prod image.
+DEV_APPS = ["sslserver"] if DEBUG else []
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + DEV_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
