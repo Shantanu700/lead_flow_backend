@@ -112,7 +112,8 @@ class DiscussionAV(BaseAV):
             discussion = serializer.save(lead=lead, created_by=request.user)
             if discussion.follow_up_at:
                 lead.next_follow_up_at = discussion.follow_up_at
-                lead.save(update_fields=["next_follow_up_at", "updated_at"])
+                lead.follow_up_done_at = None
+                lead.save(update_fields=["next_follow_up_at", "follow_up_done_at", "updated_at"])
         return {
             "discussion": DiscussionSerializer(discussion).data,
             "lead": LeadSerializer(lead_or_404(pk)).data,
@@ -130,10 +131,25 @@ class FollowUpsTodayAV(BaseAV):
 
 
 class FollowUpsOverdueAV(BaseAV):
-    "Open leads whose follow-up was due before today, oldest first."
+    "Open leads whose follow-up was due before today and isn't done, oldest first."
 
     @extend_response(LeadSerializer(many=True))
     def get(self, request):
         start, _ = today_bounds()
-        qs = leads().filter(next_follow_up_at__lt=start).exclude(lead_status__in=CLOSED)
+        qs = leads().filter(next_follow_up_at__lt=start, follow_up_done_at=None)
+        qs = qs.exclude(lead_status__in=CLOSED)
+        return LeadSerializer(qs.order_by("next_follow_up_at"), many=True).data
+
+
+class FollowUpsUpcomingAV(BaseAV):
+    "Follow-ups in the 7 days after today that aren't done, earliest first."
+
+    @extend_response(LeadSerializer(many=True))
+    def get(self, request):
+        _, end = today_bounds()
+        qs = leads().filter(
+            next_follow_up_at__gte=end,
+            next_follow_up_at__lt=end + timedelta(days=7),
+            follow_up_done_at=None,
+        )
         return LeadSerializer(qs.order_by("next_follow_up_at"), many=True).data

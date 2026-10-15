@@ -41,6 +41,10 @@ class Lead(ModelBase):
     value = models.PositiveBigIntegerField(default=0)
     # The current next follow-up; set from the discussion that scheduled it.
     next_follow_up_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    # When that follow-up was ticked off; cleared when a new one is scheduled.
+    follow_up_done_at = models.DateTimeField(null=True, blank=True)
+    # When the lead became Won or Lost; cleared if it's reopened.
+    closed_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, DEFAULT_ON_DELETE, null=True, related_name="+"
     )

@@ -86,13 +86,27 @@ The schema is OpenAPI 3.1, because the pydantic `Literal` types in `base/types.p
 
 - `GET /api/leads/`: all leads, newest first. Optional `?status=` (one of the six) and `?q=` (name, company or phone). Not paginated yet.
 - `POST /api/leads/`: body `{name, company?, phone?, source?, value?}`. The name is trimmed and required. Status is always `New`, and any `status` sent is ignored.
-- `GET /api/leads/{id}/` and `PUT /api/leads/{id}/`: PUT takes any of `name, company, phone, status, source, value, next_follow_up_at`. Only the fields sent change. Send `next_follow_up_at: null` to mark a follow-up done. The API uses PUT for updates, never PATCH.
+- `GET /api/leads/{id}/` and `PUT /api/leads/{id}/`: PUT takes any of `name, company, phone, status, source, value, next_follow_up_at, follow_up_done`. Only the fields sent change. The API uses PUT for updates, never PATCH.
+  - `follow_up_done: true` ticks off the follow-up by setting `follow_up_done_at`.
+  - Setting a new `next_follow_up_at`, directly or through a discussion, reopens it.
+  - Moving to Won or Lost stamps `closed_at`. Reopening clears it.
 - `GET /api/leads/{id}/discussions/`: notes, newest first.
 - `POST /api/leads/{id}/discussions/`: body `{note, follow_up_at?}`. Returns `{discussion, lead}`.
   - A follow-up also sets the lead's `next_follow_up_at`, in the same transaction.
   - A follow-up in the past is rejected with 418.
 - `GET /api/follow-ups/today/`: leads whose `next_follow_up_at` falls today in `TIME_ZONE` (Asia/Kolkata), earliest first.
-- `GET /api/follow-ups/overdue/`: open leads (not Won or Lost) whose follow-up was due before today.
+- `GET /api/follow-ups/overdue/`: open leads (not Won or Lost) whose follow-up was due before today and isn't done.
+- `GET /api/follow-ups/upcoming/`: follow-ups in the 7 days after today that aren't done.
+
+### Stats, one endpoint per tab
+
+Each endpoint returns only the figures its tab shows. They're computed with aggregate queries (`modules/leads/api/v1/stats.py`), and no lead rows are sent. The Follow-ups tab needs no stats endpoint, because its counts are the lengths of its three lists.
+
+- `GET /api/stats/dashboard/`: `open_value`, `active_leads`, `conversion_rate` (Won as a % of all leads), `avg_first_response_hours` (lead created to its first note), `won_this_month`, `by_status`.
+- `GET /api/stats/leads/`: `open_value`, `open_leads`, `avg_value`, `win_rate` (Won as a % of Won + Lost), `by_status`.
+- `GET /api/stats/reports/?period=week|month|quarter`:
+  - Fields: `revenue`, `deals_won`, `avg_deal`, `avg_days_to_close`, `win_rate`, `prev_win_rate`, `bars`, `funnel` (count and value per status, all leads), `leads`, `sources`.
+  - Periods use the app timezone. A week runs Monday to Sunday with daily bars. A month has bars for the last 6 months. A quarter is a calendar quarter, with bars for Q1 to Q4 of the year.
 
 Model notes:
 - `ModelBase.status` is the soft-delete flag. The pipeline stage is therefore `Lead.lead_status`, and serializers expose it as `status`.
