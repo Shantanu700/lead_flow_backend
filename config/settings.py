@@ -188,6 +188,12 @@ SPECTACULAR_SETTINGS = {
     "OAS_VERSION": "3.1.0",
     "OPERATION_ID_METHOD_POSITION": "PRE",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Pin the docs UIs: drf-spectacular loads them from a CDN as classic
+    # <script> tags, and `@latest` moved Redoc to 3.x, whose bundle uses
+    # import.meta and dies outside a module script (blank /redoc/ page).
+    "REDOC_DIST": "https://cdn.jsdelivr.net/npm/redoc@2.5.4",
+    "SWAGGER_UI_DIST": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.3",
+    "SWAGGER_UI_FAVICON_HREF": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.3/favicon-32x32.png",
     "SWAGGER_UI_SETTINGS": {
         "defaultModelsExpandDepth": -1,
         "displayRequestDuration": True,
