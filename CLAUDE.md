@@ -112,3 +112,16 @@ Model notes:
 - `ModelBase.status` is the soft-delete flag. The pipeline stage is therefore `Lead.lead_status`, and serializers expose it as `status`.
 - `last_note` is never stored. `with_last_note()` annotates it from the newest discussion, so read leads through that helper.
 - `value` is whole rupees. `source` is one of `LeadSource`.
+
+### Sample data
+
+`python manage.py seed_leads`, run in the dev container, fills the database with illustrative leads so the app isn't empty in development.
+- **Current pipeline:** the 26 leads the frontend mock-ups use. Each has notes and a source, and their follow-ups fall today, overdue and in the next few days.
+- **History:** 48 closed deals spread over the past year, so Reports has months and quarters to show.
+- **Dates:** everything is dated relative to now, so the data looks right whatever day it runs. Static JSON fixtures would go stale.
+- **Fake contact data:** phones use the fictional 555-01xx range.
+
+Options and safeguards:
+- It only runs with `DJANGO_DEBUG=1`, and it refuses if any leads already exist.
+- `--reset` deletes every lead and discussion first.
+- `--user <email>` records that user as the creator.
