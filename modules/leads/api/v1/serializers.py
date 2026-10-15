@@ -40,6 +40,8 @@ class LeadSerializer(BaseSerializer):
             "source",
             "value",
             "next_follow_up_at",
+            "follow_up_done_at",
+            "closed_at",
             "last_note",
             "created_by",
             "created_at",
@@ -65,13 +67,36 @@ class LeadUpdateSerializer(BaseSerializer):
     status = serializers.ChoiceField(
         source="lead_status", choices=LeadStatus.choices, required=False
     )
+    follow_up_done = serializers.BooleanField(
+        required=False, write_only=True, help_text="Tick off (true) or reopen (false) the follow-up."
+    )
 
     class Meta:
         model = Lead
-        # Clearing next_follow_up_at (null) marks the follow-up done.
-        fields = ("name", "company", "phone", "status", "source", "value", "next_follow_up_at")
+        fields = (
+            "name",
+            "company",
+            "phone",
+            "status",
+            "source",
+            "value",
+            "next_follow_up_at",
+            "follow_up_done",
+        )
         # PUT sends only what changes (the view saves with partial=True).
         extra_kwargs = {"name": {"required": False}}
+
+    def update(self, instance, validated_data):
+        now = timezone.now()
+        if "follow_up_done" in validated_data:
+            instance.follow_up_done_at = now if validated_data.pop("follow_up_done") else None
+        if "next_follow_up_at" in validated_data:
+            instance.follow_up_done_at = None  # a new time is a new follow-up
+        status = validated_data.get("lead_status")
+        if status and status != instance.lead_status:
+            closed = status in (LeadStatus.WON, LeadStatus.LOST)
+            instance.closed_at = now if closed else None
+        return super().update(instance, validated_data)
 
 
 class DiscussionSerializer(BaseSerializer):
