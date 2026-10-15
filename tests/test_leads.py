@@ -52,8 +52,8 @@ def test_status_update_and_filter_keep_won_and_lost(api):
     response = put(api, f"/api/leads/{a['id']}/", {"status": "Lost"})
 
     assert response.json()["status"] == "Lost"
-    assert [x["name"] for x in api.get("/api/leads/?status=Lost").json()] == ["A"]
-    assert len(api.get("/api/leads/").json()) == 2  # Lost stays listed
+    assert [x["name"] for x in api.get("/api/leads/?status=Lost").json()["results"]] == ["A"]
+    assert api.get("/api/leads/").json()["count"] == 2  # Lost stays listed
     assert put(api, f"/api/leads/{b['id']}/", {"status": "Maybe"}).status_code == 418
     assert api.get("/api/leads/?status=Maybe").status_code == 409
 
@@ -113,3 +113,28 @@ def test_clearing_follow_up_marks_it_done(api):
 
 def test_unknown_lead_is_404(api):
     assert api.get("/api/leads/999/").status_code == 404
+
+
+def test_list_pages_on_the_server(api):
+    for i in range(12):
+        create(api, name=f"Lead {i:02d}", value=i * 100)
+
+    first = api.get("/api/leads/").json()
+    assert (first["count"], len(first["results"])) == (12, 10)
+    assert first["next"] and first["previous"] is None
+    second = api.get("/api/leads/?page=2").json()
+    assert len(second["results"]) == 2
+    assert len(api.get("/api/leads/?page_size=5").json()["results"]) == 5
+    assert api.get("/api/leads/?page=9").status_code == 404
+
+
+def test_list_orders_and_searches_notes(api):
+    a, b, c = create(api, name="Bravo", value=300), create(api, name="alpha", value=100), create(api, name="Charlie", value=200)
+    post(api, f"/api/leads/{a['id']}/discussions/", {"note": "Wants a pricing sheet."})
+
+    names = lambda url: [x["name"] for x in api.get(url).json()["results"]]
+    assert names("/api/leads/") == ["Bravo", "Charlie", "alpha"]  # recent: a note bumps Bravo
+    assert names("/api/leads/?ordering=value") == ["Bravo", "Charlie", "alpha"]
+    assert names("/api/leads/?ordering=name") == ["alpha", "Bravo", "Charlie"]
+    assert names("/api/leads/?q=pricing") == ["Bravo"]
+    assert api.get("/api/leads/?ordering=size").status_code == 409

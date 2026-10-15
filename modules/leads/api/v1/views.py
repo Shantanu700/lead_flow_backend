@@ -2,12 +2,14 @@ from datetime import timedelta
 
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.functions import Coalesce, Lower
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import NotFound
 
 from base.decorators import extend_response
 from base.exceptions import SerializerError
+from base.pagination import DefaultPagination
 from base.views import BaseAV
 from modules.leads.api.v1.serializers import (
     DiscussionSavedSerializer,
@@ -39,19 +41,33 @@ def today_bounds():
     return start, start + timedelta(days=1)
 
 
-class LeadListAV(BaseAV):
-    "All leads, newest first (GET); create a lead (POST)."
+# ?ordering= for the list. "recent" puts the lead touched last first: its
+# newest note, else when it was created.
+ORDERING = {
+    "recent": (Coalesce("last_note_at", "created_at").desc(), "-id"),
+    "value": ("-value", "-id"),
+    "name": (Lower("name"), "id"),
+}
 
-    # ponytail: unpaginated; add base.pagination.DefaultPagination when lists grow.
+
+class LeadListAV(BaseAV):
+    "Leads, a page at a time, filtered and sorted on the server (GET); create (POST)."
+
     @extend_schema(
         parameters=[
             OpenApiParameter("status", enum=LeadStatus.values, description="Only this status"),
-            OpenApiParameter("q", description="Search name, company or phone"),
+            OpenApiParameter("q", description="Search name, company, phone or latest note"),
+            OpenApiParameter("ordering", enum=list(ORDERING), default="recent"),
+            OpenApiParameter("page", int, description="1-based page number"),
+            OpenApiParameter("page_size", int, description="Default 10, at most 50"),
         ]
     )
-    @extend_response(LeadSerializer(many=True))
+    @extend_response(LeadSerializer(), paginated=True)
     def get(self, request):
-        qs = leads().order_by("-created_at", "-id")
+        ordering = request.query_params.get("ordering") or "recent"
+        if ordering not in ORDERING:
+            self.fail(f"Unknown ordering: {ordering}.")
+        qs = leads().order_by(*ORDERING[ordering])
         status = request.query_params.get("status")
         if status:
             if status not in LeadStatus.values:
@@ -59,9 +75,14 @@ class LeadListAV(BaseAV):
             qs = qs.filter(lead_status=status)
         if q := request.query_params.get("q", "").strip():
             qs = qs.filter(
-                Q(name__icontains=q) | Q(company__icontains=q) | Q(phone__icontains=q)
+                Q(name__icontains=q)
+                | Q(company__icontains=q)
+                | Q(phone__icontains=q)
+                | Q(last_note__icontains=q)
             )
-        return LeadSerializer(qs, many=True).data
+        paginator = DefaultPagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        return paginator.get_paginated_response(LeadSerializer(page, many=True).data)
 
     @extend_schema(request=LeadCreateSerializer)
     @extend_response(LeadSerializer())
