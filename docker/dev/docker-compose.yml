@@ -18,8 +18,8 @@ x-app: &app
   # One image for web/worker/beat so they never drift apart.
   image: leadflow:dev
   volumes:
+    # Only the code is mounted; host secrets such as ~/.ssh stay out.
     - ../..:/backend
-    - ${HOME}/.ssh:/home/${USER:-leadflow}/.ssh
   depends_on:
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
