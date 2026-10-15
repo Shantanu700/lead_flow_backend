@@ -79,3 +79,22 @@ CSRF stays on:
 Origins come from `.env`. In dev the frontend runs at `https://localhost:3000`. Both servers use HTTPS on `localhost`, so the browser treats them as the same site and the default `SameSite=Lax` session cookie works.
 
 The schema is OpenAPI 3.1, because the pydantic `Literal` types in `base/types.py` produce `const`. The frontend generates its client from `/api/schema/`.
+
+## Leads API
+
+`modules/leads/`, mounted at `/api/`. Every endpoint needs a signed-in user. Leads are one shared team list, and each lead and note records `created_by`.
+
+- `GET /api/leads/`: all leads, newest first. Optional `?status=` (one of the six) and `?q=` (name, company or phone). Not paginated yet.
+- `POST /api/leads/`: body `{name, company?, phone?, source?, value?}`. The name is trimmed and required. Status is always `New`, and any `status` sent is ignored.
+- `GET /api/leads/{id}/` and `PUT /api/leads/{id}/`: PUT takes any of `name, company, phone, status, source, value, next_follow_up_at`. Only the fields sent change. Send `next_follow_up_at: null` to mark a follow-up done. The API uses PUT for updates, never PATCH.
+- `GET /api/leads/{id}/discussions/`: notes, newest first.
+- `POST /api/leads/{id}/discussions/`: body `{note, follow_up_at?}`. Returns `{discussion, lead}`.
+  - A follow-up also sets the lead's `next_follow_up_at`, in the same transaction.
+  - A follow-up in the past is rejected with 418.
+- `GET /api/follow-ups/today/`: leads whose `next_follow_up_at` falls today in `TIME_ZONE` (Asia/Kolkata), earliest first.
+- `GET /api/follow-ups/overdue/`: open leads (not Won or Lost) whose follow-up was due before today.
+
+Model notes:
+- `ModelBase.status` is the soft-delete flag. The pipeline stage is therefore `Lead.lead_status`, and serializers expose it as `status`.
+- `last_note` is never stored. `with_last_note()` annotates it from the newest discussion, so read leads through that helper.
+- `value` is whole rupees. `source` is one of `LeadSource`.

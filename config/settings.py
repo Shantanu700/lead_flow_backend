@@ -46,6 +46,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "modules.core",
+    "modules.leads",
 ]
 
 # runsslserver (HTTPS dev server) is a dev-only dependency, absent from the prod image.

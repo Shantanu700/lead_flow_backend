@@ -22,6 +22,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health),
     path("core/", include("modules.core.api.v1.urls")),
+    path("api/", include("modules.leads.api.v1.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema")),
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema")),
