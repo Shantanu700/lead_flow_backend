@@ -8,15 +8,14 @@ Django + DRF API for **LeadFlow**, a single-screen CRM. The frontend (Next.js) l
 
 ## Running
 
-Python 3.14 with uv. Everything runs in Docker on the shared `dev_db_network`:
-- Postgres: `postgres_db:5432`. Dev uses database `leadflow_dev`, prod uses `leadflow_prod`, and the role is `leadflow`.
-- Redis: `redis:6379`. Dev uses index 2, prod uses index 3. Redis is both the Celery broker and the Django cache.
-
-Those shared containers come from `~/3.0/dev/postgres.yml` and `redis.yml`. They must be running first.
+Python 3.14 with uv. Everything runs in Docker.
+- **Dev** brings its own services in `docker/dev/docker-compose.yml`: Postgres 17 (`postgres:5432`, host port 5433, `pgdata` volume) and Redis 8 (`redis:6379`, index 0). The app's role and database are `leadflow` / `leadflow_dev`. Redis is both the Celery broker and the Django cache.
+- **Prod** still uses the shared Postgres and Redis on `dev_db_network` (`postgres_db`, `redis`; database `leadflow_prod`, Redis index 3), from `~/3.0/dev/postgres.yml` and `redis.yml`.
 
 - Dev up: `docker compose -f docker/dev/docker-compose.yml up -d --build`
-  - The `web` container idles. Open it as a VS Code devcontainer, or use `docker exec -it leadflow_dev_web zsh`.
-  - Inside it, start the HTTPS dev server: `python manage.py runsslserver 0.0.0.0:8001 --certificate certs/localhost.pem --key certs/localhost-key.pem`. It's reachable at `https://localhost:8011`.
+  - Only `DJANGO_SECRET_KEY` must be filled in after `cp .env.example .env`.
+  - The `web` container runs `docker/dev/start.sh`: `create_database`, `makemigrations` + `migrate`, `seed_fixtures --if-empty`, then the HTTPS dev server (`runsslserver` on 8001, using `certs/` when present) at `https://localhost:8011`. Django's autoreloader picks up code and `.env` changes.
+  - For commands, use `docker exec -it leadflow_dev_web zsh` (or open it as a VS Code devcontainer). `docker compose ... down -v` wipes the database volume.
   - Plain HTTP still works: `python manage.py runserver 0.0.0.0:8000` serves `http://localhost:8010`.
   - `django-sslserver-v2` is a dev dependency. `sslserver` is added to `INSTALLED_APPS` only when `DJANGO_DEBUG=1`, so the prod image doesn't include it.
   - `certs/` holds an mkcert certificate for `localhost`, `127.0.0.1` and `::1`. It's gitignored and dockerignored; regenerate it with `mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1`. Browsers trust it once `mkcert -install` has been run on the machine.
@@ -34,6 +33,7 @@ Those shared containers come from `~/3.0/dev/postgres.yml` and `redis.yml`. They
   - You never need to restart the container for an env change.
 - **Prod:** settings come from `docker/prod/.env` through compose `env_file`. After editing it, run the prod `up -d` again.
 - Both real `.env` files are gitignored, and `**/.env` is dockerignored. Only the `.env.example` templates are committed.
+- `create_database` (`modules/core/management/commands/`, dev only) logs in with `DATABASE_ADMIN_URL` (the compose Postgres superuser) and creates the `DATABASE_URL` role, with CREATEDB so pytest can make its test database, and the database, when missing.
 - `DJANGO_SECRET_KEY`, `DATABASE_URL` and `REDIS_URL` are required, so settings fail at import without them.
 
 ## Migrations
@@ -122,13 +122,14 @@ Model notes:
 
 ### Sample data
 
-`python manage.py seed_leads`, run in the dev container, fills the database with illustrative leads so the app isn't empty in development.
-- **Current pipeline:** the 26 leads the frontend mock-ups use. Each has notes and a source, and their follow-ups fall today, overdue and in the next few days.
-- **History:** 48 closed deals spread over the past year, so Reports has months and quarters to show.
+`python manage.py seed_fixtures`, run in the dev container (and automatically by `start.sh` on an empty database), fills the database with illustrative data so every chart has something to show, and creates the demo login `demo@example.com`.
+- **Demo login:** its password is `DEMO_PASSWORD` from `.env`, or a random one printed once when the account is created. An existing account's password is never changed, and it owns the seeded leads.
+- **Pipeline:** 67 open leads shaped like a funnel (New 24, Contacted 19, Qualified 14, Proposal Sent 10), including the 26 named leads the frontend mock-ups use. Each has 2 to 5 notes that follow its stage. Follow-ups fall today (8, 2 done), overdue (4) and over the next week.
+- **History:** about 65 closed deals over the past year, about 60/40 won/lost, rising month by month, plus a win on each day of the current week and a mix last week. Every Reports period (week, month, quarter) has bars, a win rate and a previous-period win rate, and recent leads come from all five sources.
 - **Dates:** everything is dated relative to now, so the data looks right whatever day it runs. Static JSON fixtures would go stale.
 - **Fake contact data:** phones use the fictional 555-01xx range.
 
 Options and safeguards:
-- It only runs with `DJANGO_DEBUG=1`, and it refuses if any leads already exist.
+- It only runs with `DJANGO_DEBUG=1`, and it refuses if any leads already exist. `--if-empty` turns that refusal into a quiet no-op (used by `start.sh`).
 - `--reset` deletes every lead and discussion first.
 - `--user <email>` records that user as the creator.
