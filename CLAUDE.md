@@ -56,3 +56,26 @@ The prod image copies whatever migration files are on disk, so run `makemigratio
 - **New feature module:** create `modules/<app>/` with `api/v1/{serializers,views,urls}.py`. Keep `api/` and `api/v1/` as namespace packages with no `__init__.py`. Add `"modules.<app>"` to `LOCAL_APPS` and `include("modules.<app>.api.v1.urls")` in `config/urls.py`.
 - **User model:** `AUTH_USER_MODEL = "core.User"` (`modules/core/models.py`).
 - **CSRF:** stays enabled, unlike certifier and munim. CORS allows only `CORS_ALLOWED_ORIGINS`.
+
+## Auth
+
+Email and password with Django sessions. There's no Google sign-in. Endpoints live in `modules/core/api/v1/`, mounted at `/core/`:
+
+- `GET /core/csrf/` (public): returns `{"csrf_token"}` and sets the `csrftoken` cookie.
+- `POST /core/register/` (public): body `{name, email, password}`.
+  - Success: signs the new user in and returns 201 with the user.
+  - Invalid: returns 418 with a dict of errors per field. A duplicate email is checked case-insensitively, and the password goes through Django's validators.
+- `POST /core/login/` (public): body `{email, password}`. Returns 201 with the user, or 409 `{"msg": "Email or password is incorrect."}`.
+- `GET /core/login/`: returns the current user, or 401 when signed out.
+- `DELETE /core/login/` (public): signs out and returns 200 `{"msg": "Signed out."}`.
+
+`USERNAME_FIELD = "email"`. `UserManager.create_user(email, password, **extra)` stores the email lowercase and mirrors it into `username` for the stock admin.
+
+CSRF stays on:
+- Anonymous POSTs (login, register) don't need a token, because DRF only enforces CSRF for an authenticated session.
+- Every authenticated write must send `X-CSRFToken`.
+- `login()` and `logout()` rotate the token, so clients re-fetch `/core/csrf/` after either.
+
+Origins come from `.env`. In dev the frontend runs at `https://localhost:3000`. Both servers use HTTPS on `localhost`, so the browser treats them as the same site and the default `SameSite=Lax` session cookie works.
+
+The schema is OpenAPI 3.1, because the pydantic `Literal` types in `base/types.py` produce `const`. The frontend generates its client from `/api/schema/`.

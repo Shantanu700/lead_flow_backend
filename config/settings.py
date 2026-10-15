@@ -140,9 +140,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # CORS / CSRF / cookies. The frontend is a separate origin; the final cookie
 # policy is settled with login and registration.
 
-CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "https://localhost:3000")
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "http://localhost:3000")
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "https://localhost:3000")
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG
@@ -183,6 +183,8 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "LeadFlow API",
     "DESCRIPTION": "Leads, discussions and follow-ups for the LeadFlow CRM",
     "VERSION": "0.1.0",
+    # 3.1: base/types.py response models use Literal, emitted as `const` (invalid in 3.0).
+    "OAS_VERSION": "3.1.0",
     "OPERATION_ID_METHOD_POSITION": "PRE",
     "SERVE_INCLUDE_SCHEMA": False,
     "SWAGGER_UI_SETTINGS": {

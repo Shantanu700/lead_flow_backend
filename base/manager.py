@@ -1,5 +1,5 @@
+from django.contrib.auth.models import BaseUserManager
 from django.db.models import Manager
-from django.contrib.auth.models import UserManager as OGUserManager
 
 from base.enums import Status
 
@@ -11,11 +11,27 @@ class DeleteStatusManager(Manager):
         return super().get_queryset().exclude(status=Status.DELETED)
 
 
-class UserManager(DeleteStatusManager, OGUserManager):
-    r"""User Manager to provide `create_user` functionality to our custom User"""
+class UserManager(DeleteStatusManager, BaseUserManager):
+    r"""Email-login manager for the custom User.
 
-    def create_user(self, username, email=None, password=None, **extra_fields):
-        user = super().create_user(username, email, password, **extra_fields)
+    Email is the login (`USERNAME_FIELD`), stored lowercase so uniqueness and
+    login are case-insensitive. `username` is kept for the stock admin and
+    mirrors the email.
+    """
+
+    use_in_migrations = True
+
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError("An email address is required.")
+        email = self.normalize_email(email).lower()
+        extra_fields.setdefault("username", email)
+        user = self.model(email=email, **extra_fields)
         user.set_password(password)
-        user.save()
+        user.save(using=self._db)
         return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        return self.create_user(email, password, **extra_fields)
