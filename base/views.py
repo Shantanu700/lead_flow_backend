@@ -50,9 +50,9 @@ class BaseAV(APIView):
             response = Response(response, status=default_response_code)
         return super().finalize_response(request, response, *args, **kwargs)
 
-    def fail(self, message: str):
-        "Raises a CustomError"
-        raise CustomError(message)
+    def fail(self, message: str, status_code: int = status.HTTP_400_BAD_REQUEST):
+        "Refuse the request with a message for the user (400 unless given)."
+        raise CustomError(message, status_code=status_code)
 
     def success(self, message: str):
         "Return a successful response"

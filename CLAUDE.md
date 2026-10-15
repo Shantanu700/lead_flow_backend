@@ -50,9 +50,9 @@ The prod image copies whatever migration files are on disk, so run `makemigratio
 - **Views:** subclass `base.views.BaseAV` (an APIView).
   - Every endpoint requires authentication unless the view sets `authentication = False`, or a per-method dict such as `{"post": False}`.
   - A handler can return a dict, list, str or pydantic model; it's wrapped in a response with the status from `STATUS_MAPPING` (POST returns 201).
-  - `self.fail(msg)` raises a 409 and `self.success(msg)` returns `{"msg": msg}`.
+  - `self.fail(msg)` refuses the request with 400 `{"msg": msg}` (pass a status, e.g. 401, to override). `self.success(msg)` returns `{"msg": msg}`.
 - **Serializers:** subclass `base.serializers.BaseSerializer`. It supports `fields=` and `exclude=` at runtime, plus `dynamic_keys`.
-- **Errors:** go through `base.exceptions.exception_handler`. Django `ValidationError` becomes 409 `{"msg": [...]}` and `SerializerError` becomes 418.
+- **Errors:** go through `base.exceptions.exception_handler`. Invalid input is always 400: Django `ValidationError` becomes `{"msg": [...]}`, and `SerializerError` returns the errors per field. Not signed in is 401, a missing record 404.
 - **New feature module:** create `modules/<app>/` with `api/v1/{serializers,views,urls}.py`. Keep `api/` and `api/v1/` as namespace packages with no `__init__.py`. Add `"modules.<app>"` to `LOCAL_APPS` and `include("modules.<app>.api.v1.urls")` in `config/urls.py`.
 - **User model:** `AUTH_USER_MODEL = "core.User"` (`modules/core/models.py`).
 - **CSRF:** stays enabled, unlike certifier and munim. CORS allows only `CORS_ALLOWED_ORIGINS`.
@@ -64,8 +64,8 @@ Email and password with Django sessions. There's no Google sign-in. Endpoints li
 - `GET /core/csrf/` (public): returns `{"csrf_token"}` and sets the `csrftoken` cookie.
 - `POST /core/register/` (public): body `{name, email, password}`.
   - Success: signs the new user in and returns 201 with the user.
-  - Invalid: returns 418 with a dict of errors per field. A duplicate email is checked case-insensitively, and the password goes through Django's validators.
-- `POST /core/login/` (public): body `{email, password}`. Returns 201 with the user, or 409 `{"msg": "Email or password is incorrect."}`.
+  - Invalid: returns 400 with a dict of errors per field. A duplicate email is checked case-insensitively, and the password goes through Django's validators.
+- `POST /core/login/` (public): body `{email, password}`. Returns 201 with the user, or 401 `{"msg": "Email or password is incorrect."}`.
 - `GET /core/login/`: returns the current user, or 401 when signed out.
 - `DELETE /core/login/` (public): signs out and returns 200 `{"msg": "Signed out."}`.
 
@@ -100,7 +100,7 @@ The schema is OpenAPI 3.1, because the pydantic `Literal` types in `base/types.p
 - `GET /api/leads/{id}/discussions/`: notes, newest first.
 - `POST /api/leads/{id}/discussions/`: body `{note, follow_up_at?}`. Returns `{discussion, lead}`.
   - A follow-up also sets the lead's `next_follow_up_at`, in the same transaction.
-  - A follow-up in the past is rejected with 418.
+  - A follow-up in the past is rejected with 400.
 - `GET /api/follow-ups/today/`: leads whose `next_follow_up_at` falls today in `TIME_ZONE` (Asia/Kolkata), earliest first.
 - `GET /api/follow-ups/overdue/`: open leads (not Won or Lost) whose follow-up was due before today and isn't done.
 - `GET /api/follow-ups/upcoming/`: follow-ups in the 7 days after today that aren't done.

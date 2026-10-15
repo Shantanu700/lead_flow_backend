@@ -111,7 +111,7 @@ def test_reports_stats_for_the_month(api):
 
 
 def test_reports_rejects_unknown_period(api):
-    assert api.get("/api/stats/reports/?period=year").status_code == 409
+    assert api.get("/api/stats/reports/?period=year").status_code == 400
 
 
 def test_stats_need_sign_in(client):

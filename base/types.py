@@ -47,9 +47,5 @@ class CustomErrorResponseType(BaseModel):
     msg: str
 
 
-class SerializerErrorResponseType(BaseModel):
-    detail: list[str]
-
-
 class DefaultSuccessResponseType(BaseModel):
     msg: str

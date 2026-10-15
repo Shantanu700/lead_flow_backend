@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, login, logout
 from django.middleware.csrf import get_token
 from drf_spectacular.utils import extend_schema
+from rest_framework import status
 
 from base.decorators import extend_response
 from base.exceptions import SerializerError
@@ -61,7 +62,7 @@ class LoginAV(BaseAV):
             password=serializer.validated_data["password"],
         )
         if user is None:
-            self.fail("Email or password is incorrect.")
+            self.fail("Email or password is incorrect.", status.HTTP_401_UNAUTHORIZED)
         login(request, user)
         return UserSerializer(instance=user).data
 

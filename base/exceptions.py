@@ -8,7 +8,7 @@ from rest_framework.views import set_rollback
 def exception_handler(exc, context):
     if isinstance(exc, exceptions.ValidationError):
         data = {"msg": exc.error_list}
-        return Response(data, status=status.HTTP_409_CONFLICT)
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
     if isinstance(exc, APIException):
         headers = {}
@@ -36,10 +36,15 @@ class PermissionException(APIException):
 
 
 class CustomError(APIException):
-    "To be raised, when there is a custom error"
-    status_code = status.HTTP_409_CONFLICT
+    "A request the server refuses, with a message to show the user (400 unless given)."
+    status_code = status.HTTP_400_BAD_REQUEST
+
+    def __init__(self, detail=None, code=None, status_code=None):
+        super().__init__(detail, code)
+        if status_code:
+            self.status_code = status_code
 
 
 class SerializerError(APIException):
-    "To be raised, when there is a serializer error"
-    status_code = status.HTTP_418_IM_A_TEAPOT
+    "Invalid input: the serializer's errors per field (400)."
+    status_code = status.HTTP_400_BAD_REQUEST

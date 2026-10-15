@@ -11,12 +11,11 @@ from rest_framework.serializers import Serializer
 from rest_framework.settings import api_settings
 
 from base.constants import STATUS_MAPPING
-from base.exceptions import CustomError, SerializerError
+from base.exceptions import CustomError
 from base.permissions import APIAuthenticationPermission
 from base.serializers import FileObjectSerializer
 from base.types import (
     CustomErrorResponseType,
-    SerializerErrorResponseType,
     UnAuthenticatedResponseType,
 )
 
@@ -86,25 +85,19 @@ def extend_base_schema(cls, handler):
     extend_schema_params = {}
 
     responses = {
+        # Both refusals are 400: a message for the user, or errors per field.
         CustomError.status_code: OpenApiResponse(
             CustomErrorResponseType,
-            "Raised when there is a custom error, the message can be directly shown to the user.",
+            "Invalid input. Either a message to show the user ({msg}) or, from "
+            "serializer validation, a list of errors per field.",
             [
                 OpenApiExample(
-                    "Example 1",
-                    description="This is an example custom error, giving a custom error which has to be shown to user.",
-                    value={"msg": "Cannot apply leave within this range!"},
+                    "Message",
+                    value={"msg": "Period must be week, month or quarter."},
                 ),
-            ],
-        ),
-        SerializerError.status_code: OpenApiResponse(
-            SerializerErrorResponseType,
-            "Raised when there is a serializer error during the validation of schemas",
-            [
                 OpenApiExample(
-                    "Foreign Key doesn't exists",
-                    description="This is an example serializer error, when the foreign key doesn't exists.",
-                    value={"author": ['Invalid pk "999" - object does not exist.']},
+                    "Field errors",
+                    value={"name": ["This field may not be blank."]},
                 ),
             ],
         ),
