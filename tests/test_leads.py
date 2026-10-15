@@ -43,7 +43,7 @@ def test_create_defaults_to_new_and_ignores_status(api):
 
 
 def test_create_rejects_blank_name_and_trims(api):
-    assert post(api, "/api/leads/", {"name": "   "}).status_code == 418
+    assert post(api, "/api/leads/", {"name": "   "}).status_code == 400
     assert create(api, name="  Ravi  ")["name"] == "Ravi"
 
 
@@ -54,8 +54,8 @@ def test_status_update_and_filter_keep_won_and_lost(api):
     assert response.json()["status"] == "Lost"
     assert [x["name"] for x in api.get("/api/leads/?status=Lost").json()["results"]] == ["A"]
     assert api.get("/api/leads/").json()["count"] == 2  # Lost stays listed
-    assert put(api, f"/api/leads/{b['id']}/", {"status": "Maybe"}).status_code == 418
-    assert api.get("/api/leads/?status=Maybe").status_code == 409
+    assert put(api, f"/api/leads/{b['id']}/", {"status": "Maybe"}).status_code == 400
+    assert api.get("/api/leads/?status=Maybe").status_code == 400
 
 
 def test_discussions_append_newest_first_and_drive_last_note(api):
@@ -83,14 +83,14 @@ def test_follow_up_in_the_past_saves_nothing(api):
     past = (timezone.now() - timedelta(hours=1)).isoformat()
     response = post(api, f"/api/leads/{lead['id']}/discussions/", {"note": "Late.", "follow_up_at": past})
 
-    assert response.status_code == 418
+    assert response.status_code == 400
     assert "follow_up_at" in response.json()
     assert not Discussion.objects.exists()
 
 
 def test_blank_note_rejected(api):
     lead = create(api)
-    assert post(api, f"/api/leads/{lead['id']}/discussions/", {"note": "  "}).status_code == 418
+    assert post(api, f"/api/leads/{lead['id']}/discussions/", {"note": "  "}).status_code == 400
 
 
 def test_today_and_overdue_use_app_timezone(api, settings):
@@ -137,4 +137,4 @@ def test_list_orders_and_searches_notes(api):
     assert names("/api/leads/?ordering=value") == ["Bravo", "Charlie", "alpha"]
     assert names("/api/leads/?ordering=name") == ["alpha", "Bravo", "Charlie"]
     assert names("/api/leads/?q=pricing") == ["Bravo"]
-    assert api.get("/api/leads/?ordering=size").status_code == 409
+    assert api.get("/api/leads/?ordering=size").status_code == 400

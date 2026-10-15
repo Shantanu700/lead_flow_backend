@@ -34,14 +34,14 @@ def test_register_rejects_duplicate_email_case_insensitively(client):
     register(client)
     response = register(Client(), email="ASHA@Example.com")
 
-    assert response.status_code == 418
+    assert response.status_code == 400
     assert "email" in response.json()
 
 
 def test_register_rejects_weak_password(client):
     response = register(client, password="12345678")
 
-    assert response.status_code == 418
+    assert response.status_code == 400
     assert "password" in response.json()
 
 
@@ -54,7 +54,7 @@ def test_register_stores_email_lowercase(client):
 def test_login_ignores_email_case_and_rejects_wrong_password(client):
     get_user_model().objects.create_user("asha@example.com", PASSWORD, name="Asha")
 
-    assert login(Client(), password="wrong-password-1").status_code == 409
+    assert login(Client(), password="wrong-password-1").status_code == 401
     assert login(client, email="ASHA@example.com").status_code == 201
     assert client.get("/core/login/").status_code == 200
 
