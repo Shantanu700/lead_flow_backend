@@ -84,7 +84,14 @@ The schema is OpenAPI 3.1, because the pydantic `Literal` types in `base/types.p
 
 `modules/leads/`, mounted at `/api/`. Every endpoint needs a signed-in user. Leads are one shared team list, and each lead and note records `created_by`.
 
-- `GET /api/leads/`: all leads, newest first. Optional `?status=` (one of the six) and `?q=` (name, company or phone). Not paginated yet.
+- `GET /api/leads/`: paginated `{count, next, previous, results}`. Filtering, search and sorting all happen on the server.
+  - `?page=` is 1-based. `?page_size=` defaults to 10, with a maximum of 50. A page past the end returns 404.
+  - `?status=` takes one of the six statuses.
+  - `?q=` searches name, company, phone and the latest note.
+  - `?ordering=recent|value|name`:
+    - `recent` (the default) puts the lead touched last first: its newest note, else when it was created.
+    - `value` sorts highest first.
+    - `name` sorts A to Z, ignoring case.
 - `POST /api/leads/`: body `{name, company?, phone?, source?, value?}`. The name is trimmed and required. Status is always `New`, and any `status` sent is ignored.
 - `GET /api/leads/{id}/` and `PUT /api/leads/{id}/`: PUT takes any of `name, company, phone, status, source, value, next_follow_up_at, follow_up_done`. Only the fields sent change. The API uses PUT for updates, never PATCH.
   - `follow_up_done: true` ticks off the follow-up by setting `follow_up_done_at`.
